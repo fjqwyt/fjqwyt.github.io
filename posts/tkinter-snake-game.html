@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>只用标准库写一个贪吃蛇：把逻辑和画面分开 · 代码手记</title>
+<meta name="description" content="用 tkinter 写贪吃蛇，重点不在画面，而在结构：把游戏规则和绘制彻底分开，于是不用开窗口就能自动化测试规则；再把画面做成 60fps 平滑滑动、发光和粒子，就有街机的感觉了。">
+<meta name="author" content="fjqwyt">
+<meta property="og:title" content="只用标准库写一个贪吃蛇：把逻辑和画面分开 · 代码手记">
+<meta property="og:description" content="用 tkinter 写贪吃蛇，重点不在画面，而在结构：把游戏规则和绘制彻底分开，于是不用开窗口就能自动化测试规则；再把画面做成 60fps 平滑滑动、发光和粒子，就有街机的感觉了。">
+<meta property="og:type" content="website">
+<link rel="alternate" type="application/rss+xml" title="代码手记" href="/feed.xml">
+<script>
+/* 尽早确定主题，避免刷新时先闪一下另一种配色。
+   默认跟随系统，用户手动切换过就记住选择。 */
+(function () {
+  try {
+    var saved = localStorage.getItem("blog-theme");
+    var theme = saved || ((window.matchMedia &&
+      window.matchMedia("(prefers-color-scheme: light)").matches) ? "light" : "dark");
+    document.documentElement.setAttribute("data-theme", theme);
+  } catch (e) {
+    document.documentElement.setAttribute("data-theme", "dark");
+  }
+})();
+</script>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<a class="skip" href="#main">跳到正文</a>
+<header class="site-head">
+  <div class="wrap head-inner">
+    <a class="brand" href="/index.html">
+      <span class="logo">◆</span>
+      <span class="brand-text">
+        <strong>代码手记</strong>
+        <em>把学到的讲清楚，才算真的学会</em>
+      </span>
+    </a>
+    <nav class="nav">
+      <a href="/index.html" >首页</a>
+      <a href="/archive.html" >归档</a>
+      <a href="/tags.html" >标签</a>
+      <a href="/about.html" >关于</a>
+      <button id="theme-toggle" type="button" aria-label="切换深浅色主题" title="切换主题">◐</button>
+    </nav>
+  </div>
+</header>
+<main id="main" class="wrap">
+<p class="back"><a href="/index.html">← 回到首页</a></p>
+<article class="post">
+  <header class="post-head">
+    <h1>只用标准库写一个贪吃蛇：把逻辑和画面分开</h1>
+    <p class="meta">
+      <time datetime="2026-10-08">2026 年 10 月 8 日</time>
+      <span class="dot">·</span> 约 12 分钟
+      <span class="dot">·</span> <a class="chip" href="/tags/python.html">Python</a><a class="chip" href="/tags/%E6%B8%B8%E6%88%8F.html">游戏</a><a class="chip" href="/tags/tkinter.html">tkinter</a>
+    </p>
+  </header>
+  <div class="post-body">
+<h2 id="tkinter"><a class="anchor" href="#tkinter" aria-hidden="true">#</a><a class="anchor" href="# id="tkinter"" aria-hidden="true">#</a>为什么用 tkinter</h2>
+<p>做小游戏当然可以用 pygame，但我想验证一件事：<strong>只用 Python 标准库，能不能做出手感不差的游戏？</strong></p>
+<p>tkinter 的优点很明确 —— 装好 Python 就有，不需要 <code>pip install</code> 任何东西，打包给别人也简单。缺点是它的 Canvas 性能一般，而且<strong>不支持透明度</strong>，做不出真正的发光效果。</p>
+<p>结论：能做，但要用点技巧绕开限制。这篇文章记录结构和几个画面技巧。</p>
+<hr />
+<h2 id="_1"><a class="anchor" href="#_1" aria-hidden="true">#</a><a class="anchor" href="# id="_1"" aria-hidden="true">#</a>一、最重要的决定：逻辑与画面分离</h2>
+<p>整个程序只有两个类：</p>
+<div class="highlight"><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">Game</span><span class="p">:</span>      <span class="c1"># 纯游戏状态和规则，一行 tkinter 都不导入</span>
+    <span class="o">...</span>
+
+<span class="k">class</span><span class="w"> </span><span class="nc">SnakeApp</span><span class="p">:</span>  <span class="c1"># 只负责把 Game 画出来</span>
+    <span class="o">...</span>
+</code></pre></div>
+
+<p>好处立刻显现：<strong>可以不开窗口测试游戏规则</strong>。</p>
+<div class="highlight"><pre><span></span><code><span class="n">game</span> <span class="o">=</span> <span class="n">Game</span><span class="p">(</span><span class="n">rng</span><span class="o">=</span><span class="n">random</span><span class="o">.</span><span class="n">Random</span><span class="p">(</span><span class="mi">7</span><span class="p">))</span>
+<span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">8000</span><span class="p">):</span>
+    <span class="n">game</span><span class="o">.</span><span class="n">auto_turn</span><span class="p">()</span>      <span class="c1"># 电脑自己决策</span>
+    <span class="n">game</span><span class="o">.</span><span class="n">step</span><span class="p">()</span>           <span class="c1"># 推进一步</span>
+    <span class="c1"># 每一步都检查不变量</span>
+</code></pre></div>
+
+<p>这让"游戏逻辑对不对"变成一个可以反复运行的自动化检查，而不是"打开窗口玩几局看看有没有 bug"。后面我改了十几次画面，规则测试一直是同一份代码，从没退化。</p>
+<hr />
+<h2 id="_2"><a class="anchor" href="#_2" aria-hidden="true">#</a><a class="anchor" href="# id="_2"" aria-hidden="true">#</a>二、游戏规则里最容易写错的三个地方</h2>
+<h3 id="1"><a class="anchor" href="#1" aria-hidden="true">#</a><a class="anchor" href="# id="1"" aria-hidden="true">#</a>1. 不能反向撞自己</h3>
+<p>按下与当前方向相反的键，如果直接生效，蛇立刻撞进自己的脖子。所以要拒绝反向：</p>
+<div class="highlight"><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">turn</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">direction</span><span class="p">):</span>
+    <span class="n">dx</span><span class="p">,</span> <span class="n">dy</span> <span class="o">=</span> <span class="n">direction</span>
+    <span class="n">cx</span><span class="p">,</span> <span class="n">cy</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">direction</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">dx</span><span class="p">,</span> <span class="n">dy</span><span class="p">)</span> <span class="o">==</span> <span class="p">(</span><span class="o">-</span><span class="n">cx</span><span class="p">,</span> <span class="o">-</span><span class="n">cy</span><span class="p">):</span>     <span class="c1"># 反向，拒绝</span>
+        <span class="k">return</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">direction</span> <span class="o">=</span> <span class="n">direction</span>
+</code></pre></div>
+
+<p>注意<strong>不是立即移动</strong>：按键只改变方向，真正位置更新发生在下一个 tick。这也意味着玩家在一格时间内按两次键不会瞬移。</p>
+<h3 id="2"><a class="anchor" href="#2" aria-hidden="true">#</a><a class="anchor" href="# id="2"" aria-hidden="true">#</a>2. 尾巴那一格能不能进？</h3>
+<p>这是最容易搞错的一处。蛇向前走时尾巴同时离开，所以<strong>尾巴所在的格子其实是可以进入的</strong>：</p>
+<div class="highlight"><pre><span></span><code><span class="n">will_grow</span> <span class="o">=</span> <span class="n">new_head</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">food</span>
+<span class="n">body</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">snake</span><span class="p">)</span>
+<span class="k">if</span> <span class="ow">not</span> <span class="n">will_grow</span><span class="p">:</span>
+    <span class="n">body</span><span class="o">.</span><span class="n">discard</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">snake</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>    <span class="c1"># 尾巴这一 tick 会移开</span>
+<span class="k">if</span> <span class="n">new_head</span> <span class="ow">in</span> <span class="n">body</span><span class="p">:</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">alive</span> <span class="o">=</span> <span class="kc">False</span>
+</code></pre></div>
+
+<p>但有个例外：<strong>如果这一步吃到食物，尾巴不会移开</strong>（蛇要变长），这时候尾巴那格就撞不得了。所以要按 <code>will_grow</code> 区分处理。</p>
+<h3 id="3"><a class="anchor" href="#3" aria-hidden="true">#</a><a class="anchor" href="# id="3"" aria-hidden="true">#</a>3. 增长的实现</h3>
+<p>"吃到食物加 3 节"最简单的实现是每 tick 加一段，但要分三 tick 才够。我的做法是<strong>一次性把尾巴复制 3 份</strong>，之后正常的出队操作会逐步把它们消化掉：</p>
+<div class="highlight"><pre><span></span><code><span class="k">if</span> <span class="n">will_grow</span><span class="p">:</span>
+    <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">GROW_PER_FOOD</span> <span class="o">-</span> <span class="mi">1</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">snake</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">snake</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>   <span class="c1"># 尾部原地复制</span>
+</code></pre></div>
+
+<p>副作用是：<strong>吃到的瞬间，蛇的长度会短暂超过"初始长度 + 3×食物数"</strong>，然后在接下来几步里回落到目标值。</p>
+<p>这个副作用后来害我写错了一个测试断言 —— 我以为长度应该时刻等于目标值，结果测试报错。<strong>是测试错了，不是游戏错了</strong>，正确的断言应该是：</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># 只允许尾部末端出现重复，其他位置重复才是真 bug</span>
+<span class="n">positions</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">game</span><span class="o">.</span><span class="n">snake</span><span class="p">)</span>
+<span class="n">dupes</span> <span class="o">=</span> <span class="p">{</span><span class="n">c</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">positions</span> <span class="k">if</span> <span class="n">positions</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="n">c</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">}</span>
+<span class="k">assert</span> <span class="ow">not</span> <span class="p">(</span><span class="n">dupes</span> <span class="o">-</span> <span class="nb">set</span><span class="p">(</span><span class="n">positions</span><span class="p">[</span><span class="o">-</span><span class="n">GROW_PER_FOOD</span><span class="p">:]))</span>
+</code></pre></div>
+
+<hr />
+<h2 id="60fps"><a class="anchor" href="#60fps" aria-hidden="true">#</a><a class="anchor" href="# id="60fps"" aria-hidden="true">#</a>三、60fps 平滑滑动</h2>
+<p>如果每个游戏 tick 直接重绘，蛇就是一格一格跳，很生硬。做法是<strong>让游戏逻辑和画面用两个不同的频率</strong>：</p>
+<ul>
+<li>游戏逻辑：每 <code>speed_ms</code> 毫秒走一格（130ms 起，最快 58ms）</li>
+<li>画面：固定 60fps 重绘</li>
+</ul>
+<p>画面重绘时，按"当前 tick 走完了多少"在格与格之间插值：</p>
+<div class="highlight"><pre><span></span><code><span class="n">progress</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="mf">1.0</span><span class="p">,</span> <span class="p">(</span><span class="n">now</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">tick_at</span><span class="p">)</span> <span class="o">*</span> <span class="mf">1000.0</span> <span class="o">/</span> <span class="n">g</span><span class="o">.</span><span class="n">speed_ms</span><span class="p">)</span>
+<span class="n">x</span> <span class="o">=</span> <span class="n">old_x</span> <span class="o">+</span> <span class="p">(</span><span class="n">new_x</span> <span class="o">-</span> <span class="n">old_x</span><span class="p">)</span> <span class="o">*</span> <span class="n">progress</span>     <span class="c1"># 每帧的显示位置</span>
+</code></pre></div>
+
+<p>蛇身每一节都做同样的插值，于是整条蛇连续滑动。而且蛇越长越明显 —— 一条 30 节的蛇，只要"头"和"身体"都在滑动，看起来就非常顺。</p>
+<p>有个细节：<strong>蛇变长时，新旧位置数组长度不一致</strong>。这时把旧数组的头部补上重复值，让尾巴这一节原地不动，就不会出现某一节瞬移：</p>
+<div class="highlight"><pre><span></span><code><span class="n">old</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">prev</span><span class="p">)</span>
+<span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">old</span><span class="p">)</span> <span class="o">!=</span> <span class="n">n</span><span class="p">:</span>
+    <span class="n">old</span> <span class="o">=</span> <span class="p">[</span><span class="n">old</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span> <span class="o">*</span> <span class="p">(</span><span class="n">n</span> <span class="o">-</span> <span class="nb">len</span><span class="p">(</span><span class="n">old</span><span class="p">))</span> <span class="o">+</span> <span class="n">old</span>
+</code></pre></div>
+
+<hr />
+<h2 id="tkinter_1"><a class="anchor" href="#tkinter_1" aria-hidden="true">#</a><a class="anchor" href="# id="tkinter_1"" aria-hidden="true">#</a>四、绕开 tkinter 的三个限制</h2>
+<h3 id="_3"><a class="anchor" href="#_3" aria-hidden="true">#</a><a class="anchor" href="# id="_3"" aria-hidden="true">#</a>不支持透明度，怎么做发光？</h3>
+<p>发光本质是"亮的颜色往外扩散并变淡"。既然没有 alpha，就用 <strong>stipple（点阵填充）</strong> 模拟：同一个颜色叠几层不同密度的点阵，越外层越稀。</p>
+<div class="highlight"><pre><span></span><code><span class="k">for</span> <span class="n">scale</span><span class="p">,</span> <span class="n">colour</span><span class="p">,</span> <span class="n">stip</span> <span class="ow">in</span> <span class="p">(</span>
+    <span class="p">(</span><span class="mf">2.40</span><span class="p">,</span> <span class="n">C_FOOD_GLOW</span><span class="p">,</span> <span class="s2">"gray12"</span><span class="p">),</span>   <span class="c1"># 最外层，12% 密度</span>
+    <span class="p">(</span><span class="mf">1.75</span><span class="p">,</span> <span class="n">C_FOOD_GLOW</span><span class="p">,</span> <span class="s2">"gray25"</span><span class="p">),</span>
+    <span class="p">(</span><span class="mf">1.30</span><span class="p">,</span> <span class="n">C_FOOD</span><span class="p">,</span>      <span class="s2">"gray50"</span><span class="p">),</span>
+<span class="p">):</span>
+    <span class="n">rr</span> <span class="o">=</span> <span class="n">r</span> <span class="o">*</span> <span class="n">scale</span>
+    <span class="n">cv</span><span class="o">.</span><span class="n">create_oval</span><span class="p">(</span><span class="n">cx</span> <span class="o">-</span> <span class="n">rr</span><span class="p">,</span> <span class="n">cy</span> <span class="o">-</span> <span class="n">rr</span><span class="p">,</span> <span class="n">cx</span> <span class="o">+</span> <span class="n">rr</span><span class="p">,</span> <span class="n">cy</span> <span class="o">+</span> <span class="n">rr</span><span class="p">,</span>
+                   <span class="n">fill</span><span class="o">=</span><span class="n">colour</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">stipple</span><span class="o">=</span><span class="n">stip</span><span class="p">)</span>
+</code></pre></div>
+
+<p>看起来就像一圈柔和的光晕，代价是每帧多画几个椭圆。</p>
+<h3 id="_4"><a class="anchor" href="#_4" aria-hidden="true">#</a><a class="anchor" href="# id="_4"" aria-hidden="true">#</a>圆圈不好看，怎么画圆角矩形？</h3>
+<p>Canvas 没有"圆角矩形"这个图元。技巧是用 <code>create_polygon</code> 的 <code>smooth=True</code>，把角上的点写两遍，让它自己圆过去：</p>
+<div class="highlight"><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">round_rect</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x0</span><span class="p">,</span> <span class="n">y0</span><span class="p">,</span> <span class="n">x1</span><span class="p">,</span> <span class="n">y1</span><span class="p">,</span> <span class="n">radius</span><span class="o">=</span><span class="mi">6</span><span class="p">,</span> <span class="o">**</span><span class="n">kw</span><span class="p">):</span>
+    <span class="n">r</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">radius</span><span class="p">,</span> <span class="p">(</span><span class="n">x1</span> <span class="o">-</span> <span class="n">x0</span><span class="p">)</span> <span class="o">/</span> <span class="mi">2</span><span class="p">,</span> <span class="p">(</span><span class="n">y1</span> <span class="o">-</span> <span class="n">y0</span><span class="p">)</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span>
+    <span class="n">pts</span> <span class="o">=</span> <span class="p">[</span><span class="n">x0</span> <span class="o">+</span> <span class="n">r</span><span class="p">,</span> <span class="n">y0</span><span class="p">,</span> <span class="n">x1</span> <span class="o">-</span> <span class="n">r</span><span class="p">,</span> <span class="n">y0</span><span class="p">,</span> <span class="n">x1</span><span class="p">,</span> <span class="n">y0</span><span class="p">,</span> <span class="n">x1</span><span class="p">,</span> <span class="n">y0</span> <span class="o">+</span> <span class="n">r</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">canvas</span><span class="o">.</span><span class="n">create_polygon</span><span class="p">(</span><span class="n">pts</span><span class="p">,</span> <span class="n">smooth</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="o">**</span><span class="n">kw</span><span class="p">)</span>
+</code></pre></div>
+
+<h3 id="_5"><a class="anchor" href="#_5" aria-hidden="true">#</a><a class="anchor" href="# id="_5"" aria-hidden="true">#</a>震屏怎么做？</h3>
+<p>死亡时整块棋盘抖一下。实现上<strong>不能</strong>去移动画布上的每一个元素（太慢），而是在画完这一帧之后，把所有带 <code>tags="play"</code> 的元素整体偏移：</p>
+<div class="highlight"><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">apply_shake</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">shake</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">return</span>
+    <span class="n">amp</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">shake</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">cell</span> <span class="o">*</span> <span class="mf">0.45</span>
+    <span class="n">dx</span><span class="p">,</span> <span class="n">dy</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rng</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="o">-</span><span class="n">amp</span><span class="p">,</span> <span class="n">amp</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">rng</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="o">-</span><span class="n">amp</span><span class="p">,</span> <span class="n">amp</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">canvas</span><span class="o">.</span><span class="n">find_withtag</span><span class="p">(</span><span class="s2">"play"</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">canvas</span><span class="o">.</span><span class="n">move</span><span class="p">(</span><span class="n">item</span><span class="p">,</span> <span class="n">dx</span><span class="p">,</span> <span class="n">dy</span><span class="p">)</span>
+</code></pre></div>
+
+<p>给 HUD 不加 <code>play</code> 标签，所以震屏时<strong>文字依然清晰可读</strong>，只有游戏区域在抖。</p>
+<hr />
+<h2 id="_6"><a class="anchor" href="#_6" aria-hidden="true">#</a><a class="anchor" href="# id="_6"" aria-hidden="true">#</a>五、性能：加一个自动降级</h2>
+<p>特效多了以后，老机器可能掉帧。与其让玩家自己发现卡，不如让程序自己退让：</p>
+<div class="highlight"><pre><span></span><code><span class="n">spent</span> <span class="o">=</span> <span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">perf_counter</span><span class="p">()</span> <span class="o">-</span> <span class="n">started_frame</span><span class="p">)</span> <span class="o">*</span> <span class="mf">1000.0</span>
+<span class="k">if</span> <span class="n">spent</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">frame_ms</span> <span class="o">*</span> <span class="mf">1.6</span><span class="p">:</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">slow_frames</span> <span class="o">+=</span> <span class="mi">1</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">slow_frames</span> <span class="o">&gt;</span> <span class="mi">30</span><span class="p">:</span>                  <span class="c1"># 连续 30 帧画得太慢</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">frame_ms</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="mi">50</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">frame_ms</span> <span class="o">+</span> <span class="mi">4</span><span class="p">)</span>   <span class="c1"># 降帧率</span>
+</code></pre></div>
+
+<p>同时提供 <code>--classic</code> 参数，一键关掉棋盘格、点阵光晕、粒子，只留纯色渲染。</p>
+<hr />
+<h2 id="bfs"><a class="anchor" href="#bfs" aria-hidden="true">#</a><a class="anchor" href="# id="bfs"" aria-hidden="true">#</a>六、让电脑自己玩：从贪心到 BFS</h2>
+<p>加自动演示功能时，我先写了最直觉的版本：<strong>朝食物的方向走</strong>。</p>
+<p>结果它 16 步就把自己困死了 —— 因为贪心会把食物放在自己身体后面。</p>
+<p>换成 BFS 最短路（蛇头到食物的最短路径）：</p>
+<div class="highlight"><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">path_to_food</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">body</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">snake</span><span class="p">)</span>
+    <span class="n">body</span><span class="o">.</span><span class="n">discard</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">snake</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>       <span class="c1"># 尾巴会移开</span>
+    <span class="n">queue</span> <span class="o">=</span> <span class="n">deque</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">head</span><span class="p">])</span>
+    <span class="n">came</span> <span class="o">=</span> <span class="p">{</span><span class="bp">self</span><span class="o">.</span><span class="n">head</span><span class="p">:</span> <span class="kc">None</span><span class="p">}</span>
+    <span class="k">while</span> <span class="n">queue</span><span class="p">:</span>
+        <span class="n">cell</span> <span class="o">=</span> <span class="n">queue</span><span class="o">.</span><span class="n">popleft</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">cell</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">food</span><span class="p">:</span>
+            <span class="o">...</span>  <span class="c1"># 回溯出路径</span>
+        <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="p">(</span><span class="n">UP</span><span class="p">,</span> <span class="n">DOWN</span><span class="p">,</span> <span class="n">LEFT</span><span class="p">,</span> <span class="n">RIGHT</span><span class="p">):</span>
+            <span class="n">nxt</span> <span class="o">=</span> <span class="p">(</span><span class="n">cell</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="n">d</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">cell</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="n">d</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+            <span class="k">if</span> <span class="n">nxt</span> <span class="ow">in</span> <span class="n">came</span> <span class="ow">or</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">inside</span><span class="p">(</span><span class="n">nxt</span><span class="p">)</span> <span class="ow">or</span> <span class="n">nxt</span> <span class="ow">in</span> <span class="n">body</span><span class="p">:</span>
+                <span class="k">continue</span>
+            <span class="n">came</span><span class="p">[</span><span class="n">nxt</span><span class="p">]</span> <span class="o">=</span> <span class="n">cell</span>
+            <span class="n">queue</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">nxt</span><span class="p">)</span>
+</code></pre></div>
+
+<p>效果从 16 步变成 <strong>1407 步、吃掉 52 个食物、蛇长 160 节</strong>。</p>
+<p>要诚实说明的是：<strong>BFS 也不是最优解</strong>。棋盘快被填满时它仍可能把自己关进口袋（我的实现最后确实是死在第 1407 步）。真正强的解法还要加"走完这一步之后剩余空间够不够"的判断。但对于演示来说，BFS 足够好，而且代码只有 20 行。</p>
+<hr />
+<h2 id="_7"><a class="anchor" href="#_7" aria-hidden="true">#</a><a class="anchor" href="# id="_7"" aria-hidden="true">#</a>七、几个"手感"上的细节</h2>
+<p>这些不影响正确性，但影响"像个游戏"：</p>
+<table>
+<thead>
+<tr>
+<th>细节</th>
+<th>做法</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>吃到食物的反馈</td>
+<td>粒子从食物位置炸开 + 绿色闪一下 + <code>+10</code> 飘字上升</td>
+</tr>
+<tr>
+<td>食物在呼吸</td>
+<td>半径按 <code>sin(t)</code> 在 86%~108% 之间脉动</td>
+</tr>
+<tr>
+<td>死亡反馈</td>
+<td>整条蛇炸成粒子 + 震屏，然后才弹结算面板</td>
+</tr>
+<tr>
+<td>蛇头有方向感</td>
+<td>眼睛按当前方向偏移绘制</td>
+</tr>
+<tr>
+<td>最高分</td>
+<td>存 JSON 文件，下次打开还在</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="_8"><a class="anchor" href="#_8" aria-hidden="true">#</a><a class="anchor" href="# id="_8"" aria-hidden="true">#</a>小结</h2>
+<p>回头看，真正让它"像个游戏"的不是特效，而是<strong>结构</strong>：</p>
+<ol>
+<li><strong>逻辑与渲染分离</strong> → 规则可以自动化测试，改画面不会碰坏规则</li>
+<li><strong>逻辑与画面用不同频率</strong> → 一格一格走，却能连续滑动</li>
+<li><strong>绕开平台限制</strong>（点阵代替透明度、多边形代替圆角）</li>
+<li><strong>让程序自己降级</strong>，而不是让玩家忍受卡顿</li>
+</ol>
+<p>如果你也想用标准库写点东西，我建议从第 1 条开始 —— 先让规则能被测试，剩下的都是装饰。</p>
+  </div>
+  <footer class="post-foot">
+    <p>觉得有用的话，欢迎把这篇分享给别人。</p>
+    <p class="back"><a href="/index.html">← 回到首页</a></p>
+  </footer>
+</article>
+</main>
+<footer class="site-foot">
+  <div class="wrap">
+    <p>© 2026 fjqwyt ·
+       由 Python 生成 ·
+       <a href="/feed.xml">RSS</a> ·
+       <a href="https://github.com/fjqwyt/fjqwyt.github.io">源码</a></p>
+    <p class="dim">本站是纯静态站点，内容写在 Markdown 里，一条命令生成整站。</p>
+  </div>
+</footer>
+<script src="/main.js"></script>
+</body>
+</html>

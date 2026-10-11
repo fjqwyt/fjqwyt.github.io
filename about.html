@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>关于 · 代码手记</title>
+<meta name="description" content="一个中文技术博客：Python、数据分析、踩坑记录与读书笔记。">
+<meta name="author" content="fjqwyt">
+<meta property="og:title" content="关于 · 代码手记">
+<meta property="og:description" content="一个中文技术博客：Python、数据分析、踩坑记录与读书笔记。">
+<meta property="og:type" content="website">
+<link rel="alternate" type="application/rss+xml" title="代码手记" href="/feed.xml">
+<script>
+/* 尽早确定主题，避免刷新时先闪一下另一种配色。
+   默认跟随系统，用户手动切换过就记住选择。 */
+(function () {
+  try {
+    var saved = localStorage.getItem("blog-theme");
+    var theme = saved || ((window.matchMedia &&
+      window.matchMedia("(prefers-color-scheme: light)").matches) ? "light" : "dark");
+    document.documentElement.setAttribute("data-theme", theme);
+  } catch (e) {
+    document.documentElement.setAttribute("data-theme", "dark");
+  }
+})();
+</script>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<a class="skip" href="#main">跳到正文</a>
+<header class="site-head">
+  <div class="wrap head-inner">
+    <a class="brand" href="/index.html">
+      <span class="logo">◆</span>
+      <span class="brand-text">
+        <strong>代码手记</strong>
+        <em>把学到的讲清楚，才算真的学会</em>
+      </span>
+    </a>
+    <nav class="nav">
+      <a href="/index.html" >首页</a>
+      <a href="/archive.html" >归档</a>
+      <a href="/tags.html" >标签</a>
+      <a href="/about.html" class="on">关于</a>
+      <button id="theme-toggle" type="button" aria-label="切换深浅色主题" title="切换主题">◐</button>
+    </nav>
+  </div>
+</header>
+<main id="main" class="wrap">
+<article class="post">
+  <header class="post-head"><h1>关于</h1></header>
+  <div class="post-body">
+    <p>你好，我是 <strong>fjqwyt</strong>。这里记录我在写代码过程中
+    真正弄明白的东西：Python、数据分析、工具链，以及那些踩过一遍就不想再踩的坑。</p>
+
+    <h2 id="why">为什么写博客</h2>
+    <p>把一件事讲清楚，比自己觉得懂了要难得多。写作会逼着你把模糊的地方补上——
+    经常是写到一半才发现某个环节其实没搞懂，于是回去重看、重做实验。
+    所以这些文章对我来说首先是笔记，其次才算是分享。</p>
+
+    <h2 id="how">这个站点是怎么做的</h2>
+    <ul>
+      <li>文章是 Markdown 文件，放在 <code>posts/</code> 目录里</li>
+      <li>用 Python 脚本（约 500 行）一次性生成整站 HTML</li>
+      <li>没有数据库、没有服务端、没有前端框架，纯静态文件</li>
+      <li>托管在 GitHub Pages 上</li>
+    </ul>
+    <p>这样做的好处是：打开速度快、几乎不可能被攻击、托管免费，
+    而且整站可以随时打包带走。</p>
+
+    <h2 id="contact">联系</h2>
+    <p>有问题欢迎在 GitHub 上提 issue，或者直接发邮件。</p>
+  </div>
+</article>
+</main>
+<footer class="site-foot">
+  <div class="wrap">
+    <p>© 2026 fjqwyt ·
+       由 Python 生成 ·
+       <a href="/feed.xml">RSS</a> ·
+       <a href="https://github.com/fjqwyt/fjqwyt.github.io">源码</a></p>
+    <p class="dim">本站是纯静态站点，内容写在 Markdown 里，一条命令生成整站。</p>
+  </div>
+</footer>
+<script src="/main.js"></script>
+</body>
+</html>

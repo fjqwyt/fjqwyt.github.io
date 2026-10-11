@@ -1,0 +1,306 @@
+/* ==========================================================================
+   代码手记 — 站点样式
+   深浅色主题通过 <html data-theme="dark|light"> 切换，偏好存在 localStorage。
+   ========================================================================== */
+
+:root {
+  --bg: #0e1117;
+  --bg-soft: #141a23;
+  --panel: #161d27;
+  --border: #24303e;
+  --text: #e6edf5;
+  --text-dim: #8fa1b5;
+  --accent: #3ddc97;
+  --accent-soft: #1d5c45;
+  --accent-text: #06251a;
+  --code-bg: #0b1017;
+  --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.25);
+  --radius: 14px;
+  --wrap: 860px;
+  --sans: "PingFang SC", "Microsoft YaHei UI", "Microsoft YaHei", "Hiragino Sans GB",
+          "Source Han Sans SC", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "JetBrains Mono", "Cascadia Code", Consolas, "SF Mono", Menlo, monospace;
+}
+
+html[data-theme="light"] {
+  --bg: #ffffff;
+  --bg-soft: #f6f8fa;
+  --panel: #ffffff;
+  --border: #e3e8ee;
+  --text: #1f2933;
+  --text-dim: #66788a;
+  --accent: #0e8f63;
+  --accent-soft: #d7f2e6;
+  --accent-text: #ffffff;
+  --code-bg: #f4f6f8;
+  --shadow: 0 1px 2px rgba(16,24,40,.06), 0 6px 20px rgba(16,24,40,.06);
+}
+
+* { box-sizing: border-box; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 16.5px;
+  line-height: 1.85;
+  -webkit-font-smoothing: antialiased;
+  transition: background .25s ease, color .25s ease;
+}
+
+.wrap { width: 100%; max-width: var(--wrap); margin: 0 auto; padding: 0 20px; }
+
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+.skip {
+  position: absolute; left: -9999px; top: 0; background: var(--accent);
+  color: var(--accent-text); padding: 8px 14px; border-radius: 0 0 8px 0;
+}
+.skip:focus { left: 0; z-index: 99; }
+
+.dim { color: var(--text-dim); }
+.dot { color: var(--text-dim); margin: 0 .45em; }
+
+/* ---------- header ---------- */
+
+.site-head {
+  position: sticky; top: 0; z-index: 20;
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter: saturate(160%) blur(10px);
+  border-bottom: 1px solid var(--border);
+}
+.head-inner {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 16px; min-height: 66px;
+}
+.brand { display: flex; align-items: center; gap: 11px; color: var(--text); }
+.brand:hover { text-decoration: none; }
+.logo {
+  display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px;
+  background: linear-gradient(135deg, var(--accent), var(--accent-soft));
+  color: var(--accent-text); font-size: 15px;
+}
+.brand-text { display: flex; flex-direction: column; line-height: 1.25; }
+.brand-text strong { font-size: 17px; letter-spacing: .3px; }
+.brand-text em { font-style: normal; font-size: 12px; color: var(--text-dim); }
+
+.nav { display: flex; align-items: center; gap: 4px; }
+.nav a {
+  color: var(--text-dim); padding: 7px 12px; border-radius: 9px;
+  font-size: 14.5px; transition: background .18s, color .18s;
+}
+.nav a:hover { background: var(--bg-soft); color: var(--text); text-decoration: none; }
+.nav a.on { color: var(--accent); background: var(--accent-soft); }
+html[data-theme="light"] .nav a.on { color: var(--accent); }
+
+#theme-toggle {
+  margin-left: 6px; width: 34px; height: 34px; border-radius: 10px; cursor: pointer;
+  background: var(--bg-soft); color: var(--text-dim);
+  border: 1px solid var(--border); font-size: 15px; line-height: 1;
+  transition: color .18s, transform .3s;
+}
+#theme-toggle:hover { color: var(--accent); transform: rotate(180deg); }
+
+/* ---------- hero ---------- */
+
+.hero { padding: 54px 0 30px; border-bottom: 1px solid var(--border); margin-bottom: 34px; }
+.hero h1 { margin: 0 0 10px; font-size: 34px; letter-spacing: .5px; }
+.hero p { margin: 0 0 6px; color: var(--text-dim); font-size: 16px; }
+
+.page-title { font-size: 27px; margin: 40px 0 26px; }
+.page-title .dim { font-size: 16px; font-weight: normal; }
+
+/* ---------- post list ---------- */
+
+.list { display: flex; flex-direction: column; gap: 18px; padding-bottom: 40px; }
+
+.card {
+  background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 24px 26px; box-shadow: var(--shadow);
+  transition: transform .18s ease, border-color .18s ease;
+}
+.card:hover { transform: translateY(-2px); border-color: var(--accent); }
+.card.featured { border-left: 3px solid var(--accent); }
+
+.card-title { margin: 0 0 8px; font-size: 21px; line-height: 1.45; }
+.card-title a { color: var(--text); }
+.card-title a:hover { color: var(--accent); text-decoration: none; }
+
+.meta { margin: 0 0 12px; font-size: 13.5px; color: var(--text-dim); }
+.summary { margin: 0 0 14px; color: var(--text-dim); }
+.more { font-size: 14.5px; }
+
+.chip {
+  display: inline-block; padding: 2px 10px; margin: 2px 4px 2px 0;
+  border-radius: 999px; font-size: 12.5px;
+  background: var(--accent-soft); color: var(--accent);
+  border: 1px solid transparent;
+}
+html[data-theme="light"] .chip { background: var(--accent-soft); color: var(--accent); }
+.chip:hover { text-decoration: none; border-color: var(--accent); }
+.chip.big { font-size: 14.5px; padding: 7px 15px; margin: 4px 7px 4px 0; }
+.chip .count { color: var(--text-dim); margin-left: 5px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; padding-bottom: 40px; }
+
+.empty { color: var(--text-dim); padding: 30px 0; }
+
+/* ---------- article ---------- */
+
+.post { padding: 34px 0 10px; }
+.post-head { margin-bottom: 30px; padding-bottom: 22px; border-bottom: 1px solid var(--border); }
+.post-head h1 { margin: 0 0 14px; font-size: 30px; line-height: 1.4; }
+
+.post-body { font-size: 16.5px; }
+.post-body h2 {
+  font-size: 22px; margin: 44px 0 14px; padding-left: 12px;
+  border-left: 4px solid var(--accent); line-height: 1.5;
+}
+.post-body h3 { font-size: 18.5px; margin: 32px 0 10px; }
+.post-body p { margin: 0 0 18px; }
+.post-body ul, .post-body ol { margin: 0 0 18px; padding-left: 26px; }
+.post-body li { margin-bottom: 7px; }
+.post-body img { max-width: 100%; border-radius: 10px; border: 1px solid var(--border); }
+
+.post-body blockquote {
+  margin: 0 0 18px; padding: 12px 18px; color: var(--text-dim);
+  background: var(--bg-soft); border-left: 3px solid var(--accent);
+  border-radius: 0 10px 10px 0;
+}
+.post-body blockquote p:last-child { margin-bottom: 0; }
+
+.post-body code {
+  font-family: var(--mono); font-size: .88em;
+  background: var(--bg-soft); color: var(--accent);
+  padding: 2px 6px; border-radius: 6px; border: 1px solid var(--border);
+}
+
+/* 代码块：横向滚动必须发生在 pre 上。
+   codehilite 输出 <div class="highlight"><pre><code>…</code></pre></div>，
+   如果只给外层 div 设 overflow-x，里面很宽的 code 会顶破布局；
+   长行还要允许在行内断行，否则手机上整页会横向溢出。 */
+.post-body pre, .highlight {
+  position: relative;
+  background: var(--code-bg) !important;
+  border: 1px solid var(--border); border-radius: 12px;
+  margin: 0 0 20px;
+  font-size: 13.8px; line-height: 1.65;
+}
+.highlight { overflow: hidden; }
+.post-body pre {
+  padding: 16px 18px;
+  overflow-x: auto;
+  max-width: 100%;
+  -webkit-overflow-scrolling: touch;
+}
+.post-body pre code {
+  background: none; border: 0; padding: 0; color: inherit;
+  font-size: 13.8px; font-family: var(--mono);
+  display: block; white-space: pre; width: max-content; min-width: 100%;
+}
+.highlight pre { margin: 0; }
+/* 正文里的长链接和长单词不要顶破容器 */
+.post-body { overflow-wrap: anywhere; }
+.post-body table { display: block; overflow-x: auto; }
+
+.copy-btn {
+  position: absolute; top: 8px; right: 8px; z-index: 2;
+  font-family: var(--sans); font-size: 12px; cursor: pointer;
+  padding: 3px 9px; border-radius: 7px;
+  background: var(--panel); color: var(--text-dim); border: 1px solid var(--border);
+  opacity: 0; transition: opacity .18s, color .18s;
+}
+pre:hover .copy-btn, .highlight:hover .copy-btn { opacity: 1; }
+.copy-btn:hover { color: var(--accent); border-color: var(--accent); }
+
+.post-body table {
+  width: 100%; border-collapse: collapse; margin: 0 0 22px; font-size: 15px;
+}
+.post-body th, .post-body td {
+  border: 1px solid var(--border); padding: 9px 13px; text-align: left;
+}
+.post-body th { background: var(--bg-soft); font-weight: 600; }
+.post-body tr:nth-child(even) td { background: color-mix(in srgb, var(--bg-soft) 55%, transparent); }
+
+.post-body hr { border: 0; border-top: 1px solid var(--border); margin: 34px 0; }
+
+.anchor {
+  float: left; margin-left: -1.1em; color: var(--border); font-weight: normal;
+  opacity: 0; transition: opacity .15s;
+}
+h2:hover .anchor, h3:hover .anchor { opacity: 1; color: var(--accent); }
+
+.toc {
+  background: var(--panel); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 18px 22px; margin: 0 0 30px;
+}
+.toc-title { margin: 0 0 10px; font-weight: 600; font-size: 15px; color: var(--text-dim); }
+.toc ul { list-style: none; margin: 0; padding: 0; }
+.toc li { margin: 5px 0; font-size: 14.5px; }
+.toc li.lvl3 { padding-left: 18px; }
+.toc a { color: var(--text-dim); }
+.toc a:hover { color: var(--accent); text-decoration: none; }
+
+.post-foot {
+  margin-top: 46px; padding-top: 22px; border-top: 1px solid var(--border);
+  color: var(--text-dim); font-size: 14.5px;
+}
+.back { margin: 26px 0 0; font-size: 14.5px; }
+
+/* ---------- archive ---------- */
+
+.year { margin-bottom: 34px; }
+.year h2 { font-size: 19px; margin: 0 0 12px; }
+.rows { list-style: none; margin: 0; padding: 0; }
+.rows li {
+  display: flex; gap: 16px; align-items: baseline;
+  padding: 9px 12px; border-radius: 9px; border-bottom: 1px solid var(--border);
+}
+.rows li:hover { background: var(--bg-soft); }
+.rows time { color: var(--text-dim); font-family: var(--mono); font-size: 13.5px; }
+.rows a { color: var(--text); }
+.rows a:hover { color: var(--accent); text-decoration: none; }
+
+/* ---------- footer ---------- */
+
+.site-foot {
+  border-top: 1px solid var(--border); margin-top: 50px; padding: 28px 0 40px;
+  color: var(--text-dim); font-size: 14px;
+}
+.site-foot p { margin: 0 0 6px; }
+
+/* ---------- motion ---------- */
+
+@media (prefers-reduced-motion: no-preference) {
+  .card, .post, .year { animation: rise .42s ease both; }
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: none; }
+  }
+}
+
+/* ---------- mobile ---------- */
+
+@media (max-width: 680px) {
+  body { font-size: 16px; line-height: 1.8; }
+  .head-inner { flex-wrap: wrap; gap: 8px; padding: 10px 16px 0; min-height: 0; }
+  .brand-text em { display: none; }
+  .nav { width: 100%; justify-content: space-between; padding-bottom: 8px; }
+  .nav a { padding: 6px 9px; font-size: 14px; }
+  .hero { padding: 34px 0 22px; }
+  .hero h1 { font-size: 26px; }
+  .card { padding: 19px 18px; }
+  .card-title { font-size: 19px; }
+  .post-head h1 { font-size: 24px; }
+  .post-body h2 { font-size: 20px; }
+  .rows li { flex-direction: column; gap: 2px; }
+  .copy-btn { opacity: 1; }
+}
+
+@media print {
+  .site-head, .site-foot, .toc, .copy-btn, .back { display: none; }
+  body { background: #fff; color: #000; }
+}

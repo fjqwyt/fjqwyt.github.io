@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+<channel>
+  <title>代码手记</title>
+  <link>https://fjqwyt.github.io/</link>
+  <description>一个中文技术博客：Python、数据分析、踩坑记录与读书笔记。</description>
+  <language>zh-CN</language>
+  <item>
+    <title>用 Python 从一本 467 页的 PDF 教科书里统计词频</title>
+    <link>https://fjqwyt.github.io/posts/word-frequency-from-pdf.html</link>
+    <guid isPermaLink="true">https://fjqwyt.github.io/posts/word-frequency-from-pdf.html</guid>
+    <pubDate>Sun, 11 Oct 2026 00:00:00 +0800</pubDate>
+    <description>从 PDF 提取全部单词并排序看起来很简单，真正的工作量全在清洗上：词形连字、字距伪影、页眉页脚。这里记录了完整流程，以及四个只有对着数据看才能发现的坑。</description>
+  </item>
+  <item>
+    <title>只用标准库写一个贪吃蛇：把逻辑和画面分开</title>
+    <link>https://fjqwyt.github.io/posts/tkinter-snake-game.html</link>
+    <guid isPermaLink="true">https://fjqwyt.github.io/posts/tkinter-snake-game.html</guid>
+    <pubDate>Thu, 08 Oct 2026 00:00:00 +0800</pubDate>
+    <description>用 tkinter 写贪吃蛇，重点不在画面，而在结构：把游戏规则和绘制彻底分开，于是不用开窗口就能自动化测试规则；再把画面做成 60fps 平滑滑动、发光和粒子，就有街机的感觉了。</description>
+  </item>
+  <item>
+    <title>用 500 行 Python 生成一个静态博客，并部署到 GitHub Pages</title>
+    <link>https://fjqwyt.github.io/posts/static-blog-with-python.html</link>
+    <guid isPermaLink="true">https://fjqwyt.github.io/posts/static-blog-with-python.html</guid>
+    <pubDate>Mon, 28 Sep 2026 00:00:00 +0800</pubDate>
+    <description>不装 Node、不引入前端框架，用 Python 把 Markdown 编译成整站 HTML，再免费发布到 GitHub Pages。顺便说清楚静态站和动态站各自适合什么场景。</description>
+  </item>
+</channel>
+</rss>

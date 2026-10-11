@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>用 Python 从一本 467 页的 PDF 教科书里统计词频 · 代码手记</title>
+<meta name="description" content="从 PDF 提取全部单词并排序看起来很简单，真正的工作量全在清洗上：词形连字、字距伪影、页眉页脚。这里记录了完整流程，以及四个只有对着数据看才能发现的坑。">
+<meta name="author" content="fjqwyt">
+<meta property="og:title" content="用 Python 从一本 467 页的 PDF 教科书里统计词频 · 代码手记">
+<meta property="og:description" content="从 PDF 提取全部单词并排序看起来很简单，真正的工作量全在清洗上：词形连字、字距伪影、页眉页脚。这里记录了完整流程，以及四个只有对着数据看才能发现的坑。">
+<meta property="og:type" content="website">
+<link rel="alternate" type="application/rss+xml" title="代码手记" href="/feed.xml">
+<script>
+/* 尽早确定主题，避免刷新时先闪一下另一种配色。
+   默认跟随系统，用户手动切换过就记住选择。 */
+(function () {
+  try {
+    var saved = localStorage.getItem("blog-theme");
+    var theme = saved || ((window.matchMedia &&
+      window.matchMedia("(prefers-color-scheme: light)").matches) ? "light" : "dark");
+    document.documentElement.setAttribute("data-theme", theme);
+  } catch (e) {
+    document.documentElement.setAttribute("data-theme", "dark");
+  }
+})();
+</script>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<a class="skip" href="#main">跳到正文</a>
+<header class="site-head">
+  <div class="wrap head-inner">
+    <a class="brand" href="/index.html">
+      <span class="logo">◆</span>
+      <span class="brand-text">
+        <strong>代码手记</strong>
+        <em>把学到的讲清楚，才算真的学会</em>
+      </span>
+    </a>
+    <nav class="nav">
+      <a href="/index.html" >首页</a>
+      <a href="/archive.html" >归档</a>
+      <a href="/tags.html" >标签</a>
+      <a href="/about.html" >关于</a>
+      <button id="theme-toggle" type="button" aria-label="切换深浅色主题" title="切换主题">◐</button>
+    </nav>
+  </div>
+</header>
+<main id="main" class="wrap">
+<p class="back"><a href="/index.html">← 回到首页</a></p>
+<article class="post">
+  <header class="post-head">
+    <h1>用 Python 从一本 467 页的 PDF 教科书里统计词频</h1>
+    <p class="meta">
+      <time datetime="2026-10-11">2026 年 10 月 11 日</time>
+      <span class="dot">·</span> 约 13 分钟
+      <span class="dot">·</span> <a class="chip" href="/tags/python.html">Python</a><a class="chip" href="/tags/%E6%96%87%E6%9C%AC%E5%A4%84%E7%90%86.html">文本处理</a><a class="chip" href="/tags/%E6%95%B0%E6%8D%AE%E6%B8%85%E6%B4%97.html">数据清洗</a>
+    </p>
+  </header>
+  <div class="post-body">
+<h2 id="_1"><a class="anchor" href="#_1" aria-hidden="true">#</a><a class="anchor" href="# id="_1"" aria-hidden="true">#</a>需求与第一反应</h2>
+<p>任务很简单：统计一本教科书里所有不同的单词，按出现次数排序。</p>
+<p>我第一反应是「三行代码的事」：</p>
+<div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">re</span><span class="o">,</span><span class="w"> </span><span class="nn">collections</span>
+<span class="n">text</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="s2">"book.txt"</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s2">"utf-8"</span><span class="p">)</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">collections</span><span class="o">.</span><span class="n">Counter</span><span class="p">(</span><span class="n">re</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="sa">r</span><span class="s2">"[A-Za-z]+"</span><span class="p">,</span> <span class="n">text</span><span class="o">.</span><span class="n">lower</span><span class="p">()))</span><span class="o">.</span><span class="n">most_common</span><span class="p">(</span><span class="mi">20</span><span class="p">))</span>
+</code></pre></div>
+
+<p>问题是，手上的不是 <code>book.txt</code>，而是一本 467 页、21 MB 的 PDF。于是「提取文本」这一步就把事情变复杂了 —— 而后面所有的坑，都出在"提取出来的东西并不等于书上印的东西"。</p>
+<hr />
+<h2 id="pdf"><a class="anchor" href="#pdf" aria-hidden="true">#</a><a class="anchor" href="# id="pdf"" aria-hidden="true">#</a>一、先确认 PDF 有没有文字层</h2>
+<p>PDF 分两种：真正带文字层的（能选中复制），和扫描成图片的（只能用 OCR）。这个必须先确认，否则后面全白做。</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">pypdf</span><span class="w"> </span><span class="kn">import</span> <span class="n">PdfReader</span>
+
+<span class="n">reader</span> <span class="o">=</span> <span class="n">PdfReader</span><span class="p">(</span><span class="s2">"textbook.pdf"</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">"页数:"</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">reader</span><span class="o">.</span><span class="n">pages</span><span class="p">))</span>
+<span class="n">page</span> <span class="o">=</span> <span class="n">reader</span><span class="o">.</span><span class="n">pages</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+<span class="nb">print</span><span class="p">(</span><span class="nb">repr</span><span class="p">(</span><span class="n">page</span><span class="o">.</span><span class="n">extract_text</span><span class="p">()[:</span><span class="mi">200</span><span class="p">]))</span>
+</code></pre></div>
+
+<p>结果：<strong>467 页，466 页有文字层</strong>（第 1 页是封面图）。很好，不需要 OCR。</p>
+<p>如果这里输出是空的、或者是一堆乱码方块，那就得换路线：<code>pytesseract</code> 做 OCR，或者直接放弃自动化。<strong>先花两分钟验证数据可行性，比写两小时代码再发现不行要划算得多。</strong></p>
+<hr />
+<h2 id="_2"><a class="anchor" href="#_2" aria-hidden="true">#</a><a class="anchor" href="# id="_2"" aria-hidden="true">#</a>二、清洗：真正的战场</h2>
+<h3 id="1ligature"><a class="anchor" href="#1ligature" aria-hidden="true">#</a><a class="anchor" href="# id="1ligature"" aria-hidden="true">#</a>坑 1：连字（ligature）不是字母</h3>
+<p>提取出来的文本里出现了 <code>\ufb01</code> 这样的字符。这不是 bug，是 PDF 的排版特性：书上印的是连字 <strong>fi</strong>，字体里它是一个独立字形，PDF 就按字形的名字存，提取出来就是 U+FB01。</p>
+<p>如果不处理，<code>efficient</code>、<code>configuration</code>、<code>benefit</code> 这些词全部统计错误。所以要先把它们还原：</p>
+<div class="highlight"><pre><span></span><code><span class="n">LIGATURES</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">"</span><span class="se">\ufb00</span><span class="s2">"</span><span class="p">:</span> <span class="s2">"ff"</span><span class="p">,</span> <span class="s2">"</span><span class="se">\ufb01</span><span class="s2">"</span><span class="p">:</span> <span class="s2">"fi"</span><span class="p">,</span> <span class="s2">"</span><span class="se">\ufb02</span><span class="s2">"</span><span class="p">:</span> <span class="s2">"fl"</span><span class="p">,</span>
+    <span class="s2">"</span><span class="se">\ufb03</span><span class="s2">"</span><span class="p">:</span> <span class="s2">"ffi"</span><span class="p">,</span> <span class="s2">"</span><span class="se">\ufb04</span><span class="s2">"</span><span class="p">:</span> <span class="s2">"ffl"</span><span class="p">,</span> <span class="s2">"</span><span class="se">\ufb05</span><span class="s2">"</span><span class="p">:</span> <span class="s2">"st"</span><span class="p">,</span>
+    <span class="s2">"</span><span class="se">\u0153</span><span class="s2">"</span><span class="p">:</span> <span class="s2">"oe"</span><span class="p">,</span> <span class="s2">"</span><span class="se">\u00e6</span><span class="s2">"</span><span class="p">:</span> <span class="s2">"ae"</span><span class="p">,</span> <span class="s2">"</span><span class="se">\u0132</span><span class="s2">"</span><span class="p">:</span> <span class="s2">"IJ"</span><span class="p">,</span>
+<span class="p">}</span>
+</code></pre></div>
+
+<h3 id="2"><a class="anchor" href="#2" aria-hidden="true">#</a><a class="anchor" href="# id="2"" aria-hidden="true">#</a>坑 2：字形名被当成正文</h3>
+<p>我盯着频次表，发现排在第 14 位的"单词"是 <code>uni</code>，出现 1211 次。</p>
+<p>这显然不是英语单词。回到原文里搜上下文：</p>
+<div class="highlight"><pre><span></span><code>Pearson is the world's learning company, with presence across
+70/uni00A0countries worldwide.
+/uni25A0Fundamental security design principles: Chapter 1 includes
+</code></pre></div>
+
+<p>真相是：pypdf 遇到它<strong>映射不了的字形</strong>时，会打印该字形的 PostScript 名字。<code>uni25A0</code> 是实心方块 ■（书上当项目符号用），<code>uni00A0</code> 是不换行空格。</p>
+<p>这一类必须整体干掉，而且要注意<strong>顺序</strong>：<code>uni00A0</code> 是不换行空格，得先解码成空格，否则它会把左右两个词粘成一个。正确做法是解码成真实字符，再交给后面的标点映射处理：</p>
+<div class="highlight"><pre><span></span><code><span class="n">GLYPH_ESCAPE</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="sa">r</span><span class="s2">"/?uni([0-9A-Fa-f]</span><span class="si">{4}</span><span class="s2">)"</span><span class="p">)</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_decode</span><span class="p">(</span><span class="n">m</span><span class="p">):</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="k">return</span> <span class="nb">chr</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">),</span> <span class="mi">16</span><span class="p">))</span>
+    <span class="k">except</span> <span class="p">(</span><span class="ne">ValueError</span><span class="p">,</span> <span class="ne">OverflowError</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s2">" "</span>
+
+<span class="n">text</span> <span class="o">=</span> <span class="n">GLYPH_ESCAPE</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="n">_decode</span><span class="p">,</span> <span class="n">text</span><span class="p">)</span>
+</code></pre></div>
+
+<p>顺带一个经验：<strong>装上 <code>fontTools</code> 能显著减少这类问题</strong>。pypdf 解析 CFF 字体的编码时需要它，缺了就只能退化成猜字形名；装上之后那 900 多个方块符号直接变成真字符。日志里会有提示：</p>
+<blockquote>
+<p>fontTools is required to fully parse the encoding of a CFF Type1 font</p>
+</blockquote>
+<p>这条警告值得当回事，别忽略。</p>
+<h3 id="3"><a class="anchor" href="#3" aria-hidden="true">#</a><a class="anchor" href="# id="3"" aria-hidden="true">#</a>坑 3：书上明明是单词，提取出来是一堆碎字母</h3>
+<p>章首页的标题用了很宽的字距，提取出来是这样：</p>
+<div class="highlight"><pre><span></span><code>I/n.sc/t.sc/r.sc/o.sc/d.sc/u.sc/c.sc/t.sc/i.sc/o.sc/n.sc
+</code></pre></div>
+
+<p>正确结果是 <strong>Introduction</strong>。</p>
+<p>我先按"每个 <code>/</code> 后面跟一个字母"的规律去拼，得到的却是 <code>Insctscrscoscdsc...</code> 这种垃圾。于是老老实实逐个片段对照原书，才看出真正的规律：每个字形的结构是</p>
+<div class="highlight"><pre><span></span><code>/ + 字距伪影字母 + . + 真实字母（及拖尾字母）
+</code></pre></div>
+
+<p>也就是<strong>真实字符在斜杠后面紧跟的那一位</strong>，而 <code>.</code> 之后是下一段伪影。规律确定后，正则可以写得很短：</p>
+<div class="highlight"><pre><span></span><code><span class="n">SPACED_INDEX</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="sa">r</span><span class="s2">"/([A-Za-z])\.[a-z]{1,3}"</span><span class="p">)</span>
+<span class="n">text</span> <span class="o">=</span> <span class="n">SPACED_INDEX</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="k">lambda</span> <span class="n">m</span><span class="p">:</span> <span class="n">m</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">),</span> <span class="n">text</span><span class="p">)</span>
+</code></pre></div>
+
+<blockquote>
+<p>教训：<strong>不要凭猜测写清洗规则</strong>。先把几十个样本摊开对照，确认规律，再写正则。我如果不逐个核对，会得到一个"看起来在工作"的规则，然后统计出一份错误的词表。</p>
+</blockquote>
+<h3 id="4"><a class="anchor" href="#4" aria-hidden="true">#</a><a class="anchor" href="# id="4"" aria-hidden="true">#</a>坑 4：整段话被逐字拆开</h3>
+<p>同一个文件里还有这种情况：</p>
+<div class="highlight"><pre><span></span><code>The NIST Computer Security Handbook [ N I S T 9 5 ] d e f i n e s t h e t e r m
+</code></pre></div>
+
+<p>这里 <code>d e f i n e s t h e t e r m</code> 应该是 <code>defines the term</code>。</p>
+<p><strong>不能用"把连续单个字母拼起来"这种粗暴规则</strong>，因为数学符号和图示标注也是单个字母：</p>
+<ul>
+<li><code>K K K K</code>（密钥变量）</li>
+<li><code>P A B C</code>（图中的点标注）</li>
+<li><code>a = b</code>（公式）</li>
+</ul>
+<p>拼错了就把真实的数学记号毁掉了。所以我用的判据是：<strong>拼起来之后，得是这本书里别处真实出现过的单词</strong>。用书自己的词汇表来验证，不需要外部词典：</p>
+<div class="highlight"><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">segment</span><span class="p">(</span><span class="n">letters</span><span class="p">,</span> <span class="n">vocabulary</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""把 ['d','e','f','i','n','e','s'] 切分成词表里存在的词。"""</span>
+    <span class="n">blob</span> <span class="o">=</span> <span class="s2">""</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">letters</span><span class="p">)</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+    <span class="c1"># 动态规划：切成最少个数的词</span>
+    <span class="o">...</span>
+</code></pre></div>
+
+<p><code>definestheterm</code> 能切成 <code>defines | the | term</code>（三个都在词表里），所以接受；<code>wab</code> 切不出来，就保持原样。切分时还要<strong>优先选词数最少的方案</strong>，否则 <code>transmitsamessage</code> 会被切成 <code>transmits a message</code> 之外的奇怪组合。</p>
+<hr />
+<h2 id="_3"><a class="anchor" href="#_3" aria-hidden="true">#</a><a class="anchor" href="# id="_3"" aria-hidden="true">#</a>三、统计规则要明确写下来</h2>
+<p>统计口径不写清楚，数字就没有意义。我最后定的规则：</p>
+<table>
+<thead>
+<tr>
+<th>规则</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>大小写合并</td>
+<td><code>The</code> / <code>THE</code> / <code>the</code> 算同一个词</td>
+</tr>
+<tr>
+<td>所有格归并</td>
+<td><code>user's</code> 记为 <code>user</code></td>
+</tr>
+<tr>
+<td>连字符词保留整体</td>
+<td><code>end-to-end</code> 是一个词，不拆</td>
+</tr>
+<tr>
+<td>缩写算词</td>
+<td><code>TCP</code>、<code>AES</code>、<code>RSA</code> 算；<code>TCP/IP</code> 因斜杠拆成两个</td>
+</tr>
+<tr>
+<td>单个字母保留</td>
+<td><code>a</code> 是词；<code>K</code>、<code>B</code> 是变量和附录编号，也保留</td>
+</tr>
+<tr>
+<td>不做词形还原</td>
+<td>主表按书上原样的词形统计</td>
+</tr>
+</tbody>
+</table>
+<p>其中"单个字母要不要保留"我纠结过。后来查了上下文，发现 <code>a</code> 有 5319 次是真实的冠词，而 <code>K</code> 是密钥变量、<code>B</code> 是附录 B、<code>U.S.</code> 拆出来的 <code>S</code> 也很常见 —— 全砍掉反而丢信息。留着，但在文档里说明它们是什么。</p>
+<hr />
+<h2 id="_4"><a class="anchor" href="#_4" aria-hidden="true">#</a><a class="anchor" href="# id="_4"" aria-hidden="true">#</a>四、验证：不要相信自己的代码</h2>
+<p>清洗规则越复杂，越容易写出"看起来对"但实际错的东西。所以我写了一个<strong>独立的验证脚本</strong>，用另一条路径重新算一遍：</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># verify.py 的核心：完全不碰中间结果，从 PDF 重新提取、重新计数</span>
+<span class="n">reader</span> <span class="o">=</span> <span class="n">PdfReader</span><span class="p">(</span><span class="n">PDF</span><span class="p">)</span>
+<span class="k">for</span> <span class="n">page</span> <span class="ow">in</span> <span class="n">reader</span><span class="o">.</span><span class="n">pages</span><span class="p">:</span>
+    <span class="n">txt</span> <span class="o">=</span> <span class="n">clean</span><span class="p">(</span><span class="n">page</span><span class="o">.</span><span class="n">extract_text</span><span class="p">()</span> <span class="ow">or</span> <span class="s2">""</span><span class="p">)</span>
+    <span class="n">independent</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">ALPHA_WORD</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="n">txt</span><span class="p">))</span>
+</code></pre></div>
+
+<p>然后跟主流程的结果对比。这里有个关键设计：<strong>验证脚本要能失败</strong>。一个永远通过的检查等于没检查。所以我加了「变异测试」—— 故意在结果里做手脚，看检查能不能抓到：</p>
+<div class="highlight"><pre><span></span><code><span class="n">mutations</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">"删掉一个词"</span><span class="p">:</span> <span class="k">lambda</span> <span class="n">c</span><span class="p">:</span> <span class="n">Counter</span><span class="p">({</span><span class="n">k</span><span class="p">:</span> <span class="n">v</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">c</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">k</span> <span class="o">!=</span> <span class="s2">"firewall"</span><span class="p">}),</span>
+    <span class="s2">"改一个词频"</span><span class="p">:</span> <span class="k">lambda</span> <span class="n">c</span><span class="p">:</span> <span class="n">Counter</span><span class="p">({</span><span class="o">**</span><span class="n">c</span><span class="p">,</span> <span class="s2">"key"</span><span class="p">:</span> <span class="n">c</span><span class="p">[</span><span class="s2">"key"</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span><span class="p">}),</span>
+    <span class="s2">"漏掉一页"</span><span class="p">:</span>   <span class="o">...</span><span class="p">,</span>
+<span class="p">}</span>
+<span class="k">for</span> <span class="n">label</span><span class="p">,</span> <span class="n">mutate</span> <span class="ow">in</span> <span class="n">mutations</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+    <span class="k">assert</span> <span class="n">mutate</span><span class="p">(</span><span class="n">result</span><span class="p">)</span> <span class="o">!=</span> <span class="n">expected</span><span class="p">,</span> <span class="sa">f</span><span class="s2">"变异未被检出：</span><span class="si">{</span><span class="n">label</span><span class="si">}</span><span class="s2">"</span>
+</code></pre></div>
+
+<p>最终结果：</p>
+<div class="highlight"><pre><span></span><code>独立重算：168,758 tokens (9,120 distinct)
+主流程  ：168,497 tokens (9,120 distinct)
+词汇表重合：9,120 / 9,120
+</code></pre></div>
+
+<p><strong>不同词数完全一致，词次差 0.155%</strong> —— 差的那 261 次是页眉页脚（两条路径对"重复出现的页眉"判定略有不同）。这个差异是可解释的，而且<strong>差异只出现在单个字母和符号碎片上，没有任何一个真实单词对不上</strong>。</p>
+<hr />
+<h2 id="_5"><a class="anchor" href="#_5" aria-hidden="true">#</a><a class="anchor" href="# id="_5"" aria-hidden="true">#</a>五、成品长什么样</h2>
+<p>最后把代码和结果放进同一份 PDF：方法说明、统计口径、Zipf 分布图、<strong>全部 9,120 个词按词频排序的完整表</strong>，以及完整的程序源码。</p>
+<p>几个数字挺有意思：</p>
+<table>
+<thead>
+<tr>
+<th>指标</th>
+<th>数值</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>总词次</td>
+<td>168,497</td>
+</tr>
+<tr>
+<td>不同单词</td>
+<td>9,120</td>
+</tr>
+<tr>
+<td>最常见的词</td>
+<td><code>the</code>（10,855 次，占 6.44%）</td>
+</tr>
+<tr>
+<td>只出现一次的词</td>
+<td>3,481 个（占词汇表 38%）</td>
+</tr>
+<tr>
+<td>前 100 个词覆盖</td>
+<td>全文 48.15%</td>
+</tr>
+</tbody>
+</table>
+<p><code>the</code> 一个词就占了 6.44%，前 100 个词覆盖近一半文本，而 38% 的词汇只出现过一次 —— 这就是典型的齐夫分布（Zipf's law）：<strong>少数词高频复用，大量词只在特定场合露一次面</strong>。在教科书里，那些只出现一次的多半是协议名、专有名词和图表编号。</p>
+<hr />
+<h2 id="_6"><a class="anchor" href="#_6" aria-hidden="true">#</a><a class="anchor" href="# id="_6"" aria-hidden="true">#</a>小结</h2>
+<p>如果只记一条，那就是：</p>
+<blockquote>
+<p><strong>提取出来的文本不等于书上的内容。清洗不是"顺手做一下"，而是这个任务的主要工作量。</strong></p>
+</blockquote>
+<p>具体到操作，有这么几条值得复用：</p>
+<ol>
+<li><strong>先验证数据可行性</strong>，再动手写逻辑（这里：先确认有文字层）</li>
+<li><strong>日志里的警告别忽略</strong>（<code>fontTools is required</code> 直接对应 900 多个错误符号）</li>
+<li><strong>清洗规则必须对着样本定，不能靠猜</strong>（字距伪影的规律我猜错了两次）</li>
+<li><strong>用数据自身的规律做判据</strong>（用书里的词表判断该不该拼接，不需要外部词典）</li>
+<li><strong>验证脚本要设计成能失败</strong>，否则它只是在安慰你</li>
+</ol>
+<p>完整代码约 500 行，只依赖 <code>pypdf</code> 和 <code>reportlab</code> 两个库。</p>
+  </div>
+  <footer class="post-foot">
+    <p>觉得有用的话，欢迎把这篇分享给别人。</p>
+    <p class="back"><a href="/index.html">← 回到首页</a></p>
+  </footer>
+</article>
+</main>
+<footer class="site-foot">
+  <div class="wrap">
+    <p>© 2026 fjqwyt ·
+       由 Python 生成 ·
+       <a href="/feed.xml">RSS</a> ·
+       <a href="https://github.com/fjqwyt/fjqwyt.github.io">源码</a></p>
+    <p class="dim">本站是纯静态站点，内容写在 Markdown 里，一条命令生成整站。</p>
+  </div>
+</footer>
+<script src="/main.js"></script>
+</body>
+</html>

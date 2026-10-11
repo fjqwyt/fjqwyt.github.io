@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>用 500 行 Python 生成一个静态博客，并部署到 GitHub Pages · 代码手记</title>
+<meta name="description" content="不装 Node、不引入前端框架，用 Python 把 Markdown 编译成整站 HTML，再免费发布到 GitHub Pages。顺便说清楚静态站和动态站各自适合什么场景。">
+<meta name="author" content="fjqwyt">
+<meta property="og:title" content="用 500 行 Python 生成一个静态博客，并部署到 GitHub Pages · 代码手记">
+<meta property="og:description" content="不装 Node、不引入前端框架，用 Python 把 Markdown 编译成整站 HTML，再免费发布到 GitHub Pages。顺便说清楚静态站和动态站各自适合什么场景。">
+<meta property="og:type" content="website">
+<link rel="alternate" type="application/rss+xml" title="代码手记" href="/feed.xml">
+<script>
+/* 尽早确定主题，避免刷新时先闪一下另一种配色。
+   默认跟随系统，用户手动切换过就记住选择。 */
+(function () {
+  try {
+    var saved = localStorage.getItem("blog-theme");
+    var theme = saved || ((window.matchMedia &&
+      window.matchMedia("(prefers-color-scheme: light)").matches) ? "light" : "dark");
+    document.documentElement.setAttribute("data-theme", theme);
+  } catch (e) {
+    document.documentElement.setAttribute("data-theme", "dark");
+  }
+})();
+</script>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<a class="skip" href="#main">跳到正文</a>
+<header class="site-head">
+  <div class="wrap head-inner">
+    <a class="brand" href="/index.html">
+      <span class="logo">◆</span>
+      <span class="brand-text">
+        <strong>代码手记</strong>
+        <em>把学到的讲清楚，才算真的学会</em>
+      </span>
+    </a>
+    <nav class="nav">
+      <a href="/index.html" >首页</a>
+      <a href="/archive.html" >归档</a>
+      <a href="/tags.html" >标签</a>
+      <a href="/about.html" >关于</a>
+      <button id="theme-toggle" type="button" aria-label="切换深浅色主题" title="切换主题">◐</button>
+    </nav>
+  </div>
+</header>
+<main id="main" class="wrap">
+<p class="back"><a href="/index.html">← 回到首页</a></p>
+<article class="post">
+  <header class="post-head">
+    <h1>用 500 行 Python 生成一个静态博客，并部署到 GitHub Pages</h1>
+    <p class="meta">
+      <time datetime="2026-09-28">2026 年 9 月 28 日</time>
+      <span class="dot">·</span> 约 16 分钟
+      <span class="dot">·</span> <a class="chip" href="/tags/python.html">Python</a><a class="chip" href="/tags/%E7%BD%91%E7%AB%99.html">网站</a><a class="chip" href="/tags/%E5%B7%A5%E5%85%B7.html">工具</a>
+    </p>
+  </header>
+  <div class="post-body">
+<h2 id="_1"><a class="anchor" href="#_1" aria-hidden="true">#</a><a class="anchor" href="# id="_1"" aria-hidden="true">#</a>为什么自己做</h2>
+<p>现成的博客工具很多：Hexo、Hugo、WordPress。自己写的理由只有一个 —— <strong>我想要的东西很简单，不想为了它装一整条工具链。</strong></p>
+<p>我的需求：</p>
+<ul>
+<li>文章用 Markdown 写，放在一个文件夹里</li>
+<li>一条命令生成整站</li>
+<li>输出是纯 HTML/CSS/JS，能直接丢到任何静态托管上</li>
+<li>不引入 Node、不装前端框架、不需要数据库</li>
+</ul>
+<p>结果是一个约 500 行的 Python 脚本，只依赖 <code>markdown</code> 和 <code>pygments</code>。</p>
+<hr />
+<h2 id="vs"><a class="anchor" href="#vs" aria-hidden="true">#</a><a class="anchor" href="# id="vs"" aria-hidden="true">#</a>一、静态站 vs 动态站</h2>
+<p>先说清楚这个选择的代价。</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>静态站（本站）</th>
+<th>动态站（WordPress 等）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>内容存放</td>
+<td>Markdown 文件</td>
+<td>数据库</td>
+</tr>
+<tr>
+<td>生成方式</td>
+<td>构建时一次性生成 HTML</td>
+<td>每次访问现查数据库</td>
+</tr>
+<tr>
+<td>服务器</td>
+<td>不需要（托管平台发文件）</td>
+<td>需要 PHP/Node + 数据库</td>
+</tr>
+<tr>
+<td>费用</td>
+<td>基本免费</td>
+<td>服务器 + 数据库要钱</td>
+</tr>
+<tr>
+<td>打开速度</td>
+<td>极快（就是普通文件）</td>
+<td>取决于数据库和缓存</td>
+</tr>
+<tr>
+<td>被攻击面</td>
+<td>几乎没有（没有可执行后端）</td>
+<td>插件/后台是主要入口</td>
+</tr>
+<tr>
+<td>在线编辑</td>
+<td>❌ 要本地改文件再重新构建</td>
+<td>✅ 浏览器里就能写</td>
+</tr>
+<tr>
+<td>评论/搜索</td>
+<td>要外挂第三方服务</td>
+<td>插件支持</td>
+</tr>
+<tr>
+<td>多人协作</td>
+<td>靠 Git</td>
+<td>内置用户系统</td>
+</tr>
+</tbody>
+</table>
+<p><strong>判断标准很简单</strong>：一个人写、不需要在线编辑后台 → 静态站。多人写、需要可视化编辑、要装各种插件 → 动态站。</p>
+<hr />
+<h2 id="_2"><a class="anchor" href="#_2" aria-hidden="true">#</a><a class="anchor" href="# id="_2"" aria-hidden="true">#</a>二、整体结构</h2>
+<div class="highlight"><pre><span></span><code>blog/
+├── build.py            # 生成器，约 500 行
+├── posts/              # 文章，一个 .md 一个文件
+│   ├── word-frequency-from-pdf.md
+│   ├── tkinter-snake-game.md
+│   └── ...
+├── static/
+│   ├── style.css       # 全站样式（含深色模式）
+│   └── main.js         # 主题切换、代码复制、阅读进度
+└── dist/               # 输出：可直接部署的整站
+    ├── index.html
+    ├── archive.html
+    ├── tags.html
+    ├── tags/*.html
+    ├── posts/*.html
+    ├── feed.xml        # RSS
+    └── sitemap.xml
+</code></pre></div>
+
+<p>生成器做四件事：</p>
+<ol>
+<li><strong>读</strong>：扫描 <code>posts/*.md</code>，解析文件头的元信息</li>
+<li><strong>转</strong>：Markdown → HTML，代码块做语法高亮</li>
+<li><strong>拼</strong>：套上页面模板，生成列表页、详情页、标签页、归档页</li>
+<li><strong>写</strong>：输出到 <code>dist/</code>，连同 CSS/JS 和 RSS</li>
+</ol>
+<hr />
+<h2 id="_3"><a class="anchor" href="#_3" aria-hidden="true">#</a><a class="anchor" href="# id="_3"" aria-hidden="true">#</a>三、文章格式：文件头 + 正文</h2>
+<p>每篇文章开头写一小段元信息，其余就是普通 Markdown（外层用四个反引号，方便里面嵌套三个反引号的代码块）：</p>
+<div class="highlight"><pre><span></span><code>---
+title: 用 Python 从一本 467 页的 PDF 教科书里统计词频
+date: 2026-10-11
+tags: Python, 文本处理, 数据清洗
+<span class="gu">summary: 从 PDF 提取全部单词并排序看起来很简单，真正的工作量全在清洗上。</span>
+<span class="gu">---</span>
+
+<span class="gu">## 正文从这里开始</span>
+
+普通段落，支持 <span class="gs">**加粗**</span>、<span class="sb">`行内代码`</span>、[链接](https://example.com)。
+
+<span class="sb">```python</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">hello</span><span class="p">():</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"代码块会高亮"</span><span class="p">)</span>
+<span class="sb">```</span>
+</code></pre></div>
+
+<p>解析文件头只要十几行，不需要 YAML 库：</p>
+<div class="highlight"><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">parse_front_matter</span><span class="p">(</span><span class="n">text</span><span class="p">):</span>
+    <span class="n">meta</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="n">lines</span> <span class="o">=</span> <span class="n">text</span><span class="o">.</span><span class="n">splitlines</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">lines</span> <span class="ow">and</span> <span class="n">lines</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span> <span class="o">==</span> <span class="s2">"---"</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">lines</span><span class="p">)):</span>
+            <span class="k">if</span> <span class="n">lines</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span> <span class="o">==</span> <span class="s2">"---"</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">meta</span><span class="p">,</span> <span class="s2">"</span><span class="se">\n</span><span class="s2">"</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">lines</span><span class="p">[</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">:])</span>
+            <span class="k">if</span> <span class="s2">":"</span> <span class="ow">in</span> <span class="n">lines</span><span class="p">[</span><span class="n">i</span><span class="p">]:</span>
+                <span class="n">key</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">value</span> <span class="o">=</span> <span class="n">lines</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">partition</span><span class="p">(</span><span class="s2">":"</span><span class="p">)</span>
+                <span class="n">meta</span><span class="p">[</span><span class="n">key</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">lower</span><span class="p">()]</span> <span class="o">=</span> <span class="n">value</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">meta</span><span class="p">,</span> <span class="n">text</span>
+</code></pre></div>
+
+<hr />
+<h2 id="markdown"><a class="anchor" href="#markdown" aria-hidden="true">#</a><a class="anchor" href="# id="markdown"" aria-hidden="true">#</a>四、Markdown 渲染与代码高亮</h2>
+<div class="highlight"><pre><span></span><code><span class="n">MD</span> <span class="o">=</span> <span class="n">markdown</span><span class="o">.</span><span class="n">Markdown</span><span class="p">(</span>
+    <span class="n">extensions</span><span class="o">=</span><span class="p">[</span><span class="s2">"fenced_code"</span><span class="p">,</span> <span class="s2">"codehilite"</span><span class="p">,</span> <span class="s2">"toc"</span><span class="p">,</span> <span class="s2">"tables"</span><span class="p">,</span> <span class="s2">"attr_list"</span><span class="p">],</span>
+    <span class="n">extension_configs</span><span class="o">=</span><span class="p">{</span>
+        <span class="s2">"codehilite"</span><span class="p">:</span> <span class="p">{</span><span class="s2">"guess_lang"</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span> <span class="s2">"css_class"</span><span class="p">:</span> <span class="s2">"highlight"</span><span class="p">},</span>
+        <span class="s2">"toc"</span><span class="p">:</span> <span class="p">{</span><span class="s2">"toc_depth"</span><span class="p">:</span> <span class="s2">"2-3"</span><span class="p">},</span>
+    <span class="p">},</span>
+<span class="p">)</span>
+</code></pre></div>
+
+<ul>
+<li><code>fenced_code</code> —— 支持 <code>```</code> 围栏代码块</li>
+<li><code>codehilite</code> —— 配合 Pygments 做语法高亮</li>
+<li><code>toc</code> —— 自动给标题加 <code>id</code> 并生成目录</li>
+</ul>
+<p>有一个小细节要注意：<strong><code>codehilite</code> 默认会猜语言</strong>。猜错的后果是代码被染成乱七八糟的颜色，所以我把 <code>guess_lang</code> 关掉，只认我明确标注的语言。</p>
+<p>高亮的配色不手写 CSS，直接用 Pygments 生成，能和主题保持一致：</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">pygments.formatters</span><span class="w"> </span><span class="kn">import</span> <span class="n">HtmlFormatter</span>
+<span class="p">(</span><span class="n">DIST</span> <span class="o">/</span> <span class="s2">"pygments.css"</span><span class="p">)</span><span class="o">.</span><span class="n">write_text</span><span class="p">(</span>
+    <span class="n">HtmlFormatter</span><span class="p">(</span><span class="n">style</span><span class="o">=</span><span class="s2">"monokai"</span><span class="p">)</span><span class="o">.</span><span class="n">get_style_defs</span><span class="p">(</span><span class="s2">".highlight"</span><span class="p">),</span>
+    <span class="n">encoding</span><span class="o">=</span><span class="s2">"utf-8"</span><span class="p">)</span>
+</code></pre></div>
+
+<hr />
+<h2 id="_4"><a class="anchor" href="#_4" aria-hidden="true">#</a><a class="anchor" href="# id="_4"" aria-hidden="true">#</a>五、页面模板：用一个函数包住所有页面</h2>
+<p>所有页面共享同一套外壳（导航、页脚、主题切换按钮），所以只需要一个函数：</p>
+<div class="highlight"><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">page</span><span class="p">(</span><span class="n">title</span><span class="p">,</span> <span class="n">content</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">active</span><span class="o">=</span><span class="s2">""</span><span class="p">,</span> <span class="n">description</span><span class="o">=</span><span class="s2">""</span><span class="p">):</span>
+    <span class="k">return</span> <span class="sa">f</span><span class="s2">"""&lt;!DOCTYPE html&gt;</span>
+<span class="s2">&lt;html lang="zh-CN" data-theme="dark"&gt;</span>
+<span class="s2">&lt;head&gt;</span>
+<span class="s2">  &lt;meta charset="utf-8"&gt;</span>
+<span class="s2">  &lt;meta name="viewport" content="width=device-width, initial-scale=1"&gt;</span>
+<span class="s2">  &lt;title&gt;</span><span class="si">{</span><span class="n">html</span><span class="o">.</span><span class="n">escape</span><span class="p">(</span><span class="n">title</span><span class="p">)</span><span class="si">}</span><span class="s2">&lt;/title&gt;</span>
+<span class="s2">  &lt;link rel="stylesheet" href="</span><span class="si">{</span><span class="n">SITE</span><span class="p">[</span><span class="s1">'base_url'</span><span class="p">]</span><span class="si">}</span><span class="s2">/style.css"&gt;</span>
+<span class="s2">&lt;/head&gt;</span>
+<span class="s2">&lt;body&gt;</span>
+<span class="s2">  &lt;header&gt;...导航...&lt;/header&gt;</span>
+<span class="s2">  &lt;main&gt;</span><span class="si">{</span><span class="n">content</span><span class="si">}</span><span class="s2">&lt;/main&gt;</span>
+<span class="s2">  &lt;footer&gt;...&lt;/footer&gt;</span>
+<span class="s2">  &lt;script src="</span><span class="si">{</span><span class="n">SITE</span><span class="p">[</span><span class="s1">'base_url'</span><span class="p">]</span><span class="si">}</span><span class="s2">/main.js"&gt;&lt;/script&gt;</span>
+<span class="s2">&lt;/body&gt;</span>
+<span class="s2">&lt;/html&gt;</span>
+<span class="s2">"""</span>
+</code></pre></div>
+
+<p>⚠️ <strong>一定要 <code>html.escape()</code></strong>。文章标题里出现 <code>&amp;</code>、<code>&lt;</code> 是常事，不转义就会破坏页面结构，甚至造成 XSS。这个函数出现的每一处都别偷懒。</p>
+<hr />
+<h2 id="_5"><a class="anchor" href="#_5" aria-hidden="true">#</a><a class="anchor" href="# id="_5"" aria-hidden="true">#</a>六、深色模式：不要闪白</h2>
+<p>主题切换本身很简单，难点是<strong>首屏不能闪</strong>。</p>
+<p>如果等 JS 加载完再设置主题，深色模式用户会看到一瞬间的白屏（FOUC）。解决办法是让 JS 尽早执行，并且<strong>默认跟随系统</strong>：</p>
+<div class="highlight"><pre><span></span><code><span class="kd">function</span><span class="w"> </span><span class="nx">preferredTheme</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="nx">saved</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">localStorage</span><span class="p">.</span><span class="nx">getItem</span><span class="p">(</span><span class="s2">"blog-theme"</span><span class="p">);</span>
+<span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">saved</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="nx">saved</span><span class="p">;</span><span class="w">                       </span><span class="c1">// 用户手动选过</span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="nx">matchMedia</span><span class="p">(</span><span class="s2">"(prefers-color-scheme: light)"</span><span class="p">).</span><span class="nx">matches</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="s2">"light"</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="s2">"dark"</span><span class="p">;</span>
+<span class="p">}</span>
+<span class="nx">applyTheme</span><span class="p">(</span><span class="nx">preferredTheme</span><span class="p">());</span><span class="w">                    </span><span class="c1">// 立即执行，不等 DOMContentLoaded</span>
+</code></pre></div>
+
+<p>样式全部用 CSS 变量，切换主题只是改一个属性：</p>
+<div class="highlight"><pre><span></span><code><span class="p">:</span><span class="nd">root</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nv">--bg</span><span class="p">:</span><span class="w"> </span><span class="mh">#0e1117</span><span class="p">;</span><span class="w"> </span><span class="nv">--text</span><span class="p">:</span><span class="w"> </span><span class="mh">#e6edf5</span><span class="p">;</span><span class="w"> </span><span class="nv">--accent</span><span class="p">:</span><span class="w"> </span><span class="mh">#3ddc97</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+<span class="nt">html</span><span class="o">[</span><span class="nt">data-theme</span><span class="o">=</span><span class="s2">"light"</span><span class="o">]</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nv">--bg</span><span class="p">:</span><span class="w"> </span><span class="mh">#fff</span><span class="p">;</span><span class="w"> </span><span class="nv">--text</span><span class="p">:</span><span class="w"> </span><span class="mh">#1f2933</span><span class="p">;</span><span class="w"> </span><span class="nv">--accent</span><span class="p">:</span><span class="w"> </span><span class="mh">#0e8f63</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+
+<span class="nt">body</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">background</span><span class="p">:</span><span class="w"> </span><span class="nf">var</span><span class="p">(</span><span class="nv">--bg</span><span class="p">);</span><span class="w"> </span><span class="k">color</span><span class="p">:</span><span class="w"> </span><span class="nf">var</span><span class="p">(</span><span class="nv">--text</span><span class="p">);</span><span class="w"> </span><span class="k">transition</span><span class="p">:</span><span class="w"> </span><span class="k">background</span><span class="w"> </span><span class="mf">.25</span><span class="kt">s</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+</code></pre></div>
+
+<hr />
+<h2 id="_6"><a class="anchor" href="#_6" aria-hidden="true">#</a><a class="anchor" href="# id="_6"" aria-hidden="true">#</a>七、几个让阅读体验变好的小细节</h2>
+<table>
+<thead>
+<tr>
+<th>细节</th>
+<th>做法</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>代码一键复制</td>
+<td>JS 给每个代码块追加按钮，优先用 <code>navigator.clipboard</code>，失败退回 <code>execCommand</code></td>
+</tr>
+<tr>
+<td>长文阅读进度</td>
+<td>顶部一条 2px 的进度条，算的是文章底部相对视口的位置</td>
+</tr>
+<tr>
+<td>目录</td>
+<td>只在标题数 ≥ 3 时才显示，太短的文章不需要</td>
+</tr>
+<tr>
+<td>中文排版</td>
+<td><code>line-height: 1.85</code>、正文最大宽度 860px（约 40 个汉字）</td>
+</tr>
+<tr>
+<td>手机适配</td>
+<td>680px 断点，导航换行，卡片缩小内边距</td>
+</tr>
+<tr>
+<td>无障碍</td>
+<td>语义化标签、<code>&lt;time datetime&gt;</code>、"跳到正文"链接、<code>prefers-reduced-motion</code></td>
+</tr>
+<tr>
+<td>打印</td>
+<td><code>@media print</code> 隐藏导航和目录，白底黑字</td>
+</tr>
+</tbody>
+</table>
+<p>中文排版那条值得强调：<strong>正文宽度不要超过 900px</strong>。一行字太长，眼睛回到下一行时容易串行，这是中文博客最常见的排版问题。</p>
+<hr />
+<h2 id="_7"><a class="anchor" href="#_7" aria-hidden="true">#</a><a class="anchor" href="# id="_7"" aria-hidden="true">#</a>八、构建与本地预览</h2>
+<div class="highlight"><pre><span></span><code>python<span class="w"> </span>build.py<span class="w">                    </span><span class="c1"># 只生成</span>
+python<span class="w"> </span>build.py<span class="w"> </span>--serve<span class="w">            </span><span class="c1"># 生成并起本地预览（http://127.0.0.1:8000）</span>
+python<span class="w"> </span>build.py<span class="w"> </span>--serve<span class="w"> </span>--host<span class="w"> </span><span class="m">0</span>.0.0.0<span class="w"> </span>--port<span class="w"> </span><span class="m">8080</span><span class="w">   </span><span class="c1"># 同一 WiFi 的人也能看</span>
+</code></pre></div>
+
+<p>预览服务器只用标准库：</p>
+<div class="highlight"><pre><span></span><code><span class="n">handler</span> <span class="o">=</span> <span class="n">functools</span><span class="o">.</span><span class="n">partial</span><span class="p">(</span><span class="n">SimpleHTTPRequestHandler</span><span class="p">,</span> <span class="n">directory</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">DIST</span><span class="p">))</span>
+<span class="k">with</span> <span class="n">TCPServer</span><span class="p">((</span><span class="n">host</span><span class="p">,</span> <span class="n">port</span><span class="p">),</span> <span class="n">handler</span><span class="p">)</span> <span class="k">as</span> <span class="n">httpd</span><span class="p">:</span>
+    <span class="n">httpd</span><span class="o">.</span><span class="n">serve_forever</span><span class="p">()</span>
+</code></pre></div>
+
+<hr />
+<h2 id="github-pages"><a class="anchor" href="#github-pages" aria-hidden="true">#</a><a class="anchor" href="# id="github-pages"" aria-hidden="true">#</a>九、部署到 GitHub Pages</h2>
+<p><strong>准备</strong>：注册 GitHub 账号（免费）。</p>
+<h3 id="1"><a class="anchor" href="#1" aria-hidden="true">#</a><a class="anchor" href="# id="1"" aria-hidden="true">#</a>1. 建仓库</h3>
+<p>新建一个仓库，命名有讲究：</p>
+<table>
+<thead>
+<tr>
+<th>仓库名</th>
+<th>网址会是</th>
+<th>类型</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>你的用户名.github.io</code></td>
+<td><code>https://你的用户名.github.io/</code></td>
+<td>用户站（根路径）</td>
+</tr>
+<tr>
+<td>其他任意名字（如 <code>blog</code>）</td>
+<td><code>https://你的用户名.github.io/blog/</code></td>
+<td>项目站（子路径）</td>
+</tr>
+</tbody>
+</table>
+<h3 id="2"><a class="anchor" href="#2" aria-hidden="true">#</a><a class="anchor" href="# id="2"" aria-hidden="true">#</a>2. 改一处配置</h3>
+<p>项目站部署在<strong>子路径</strong>下，如果资源路径写的是 <code>/style.css</code>，就会 404。所以生成器里要留一个 <code>base_url</code>：</p>
+<div class="highlight"><pre><span></span><code><span class="n">SITE</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">"title"</span><span class="p">:</span> <span class="s2">"代码手记"</span><span class="p">,</span>
+    <span class="s2">"author"</span><span class="p">:</span> <span class="s2">"你的名字"</span><span class="p">,</span>
+    <span class="c1"># 项目站填 "/仓库名"；用户站或自定义域名填空字符串</span>
+    <span class="s2">"base_url"</span><span class="p">:</span> <span class="s2">"/blog"</span><span class="p">,</span>
+<span class="p">}</span>
+</code></pre></div>
+
+<p>改完之后所有链接、CSS、JS 路径都会自动带上这个前缀。</p>
+<h3 id="3"><a class="anchor" href="#3" aria-hidden="true">#</a><a class="anchor" href="# id="3"" aria-hidden="true">#</a>3. 推上去</h3>
+<div class="highlight"><pre><span></span><code><span class="nb">cd</span><span class="w"> </span>blog
+git<span class="w"> </span>init
+git<span class="w"> </span>add<span class="w"> </span>.
+git<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s2">"初始化博客"</span>
+git<span class="w"> </span>branch<span class="w"> </span>-M<span class="w"> </span>main
+git<span class="w"> </span>remote<span class="w"> </span>add<span class="w"> </span>origin<span class="w"> </span>https://github.com/你的用户名/blog.git
+git<span class="w"> </span>push<span class="w"> </span>-u<span class="w"> </span>origin<span class="w"> </span>main
+</code></pre></div>
+
+<h3 id="4-pages"><a class="anchor" href="#4-pages" aria-hidden="true">#</a><a class="anchor" href="# id="4-pages"" aria-hidden="true">#</a>4. 开启 Pages</h3>
+<p>仓库 → <strong>Settings</strong> → <strong>Pages</strong> → Source 选 <strong>Deploy from a branch</strong> → 分支选 <strong>main</strong>，目录选 <strong>/ (root)</strong> → Save。</p>
+<blockquote>
+<p>如果你把 <code>dist/</code> 内容直接放在仓库根目录，就选 root；如果保留 <code>dist/</code> 目录结构，就选 <code>/docs</code> 并改名为 docs，或者用 GitHub Actions 构建。<strong>最简单的做法是把 <code>dist/</code> 里的内容推到仓库根目录。</strong></p>
+</blockquote>
+<h3 id="5"><a class="anchor" href="#5" aria-hidden="true">#</a><a class="anchor" href="# id="5"" aria-hidden="true">#</a>5. 等一两分钟</h3>
+<p>访问 <code>https://你的用户名.github.io/blog/</code>。第一次可能要等 1~3 分钟，之后每次 <code>git push</code> 自动更新。</p>
+<h3 id="6"><a class="anchor" href="#6" aria-hidden="true">#</a><a class="anchor" href="# id="6"" aria-hidden="true">#</a>6. 绑定自己的域名（可选）</h3>
+<p>在仓库根目录建一个名为 <code>CNAME</code> 的文件（无扩展名），内容只写域名：</p>
+<div class="highlight"><pre><span></span><code>blog.example.com
+</code></pre></div>
+
+<p>然后在你的域名服务商那里加一条 CNAME 记录指向 <code>你的用户名.github.io</code>。GitHub 会自动签发 HTTPS 证书。</p>
+<blockquote>
+<p>我特意在构建时生成了一个 <code>CNAME.example</code> 说明文件，就是提醒这一步 —— 但<strong>记得把它删掉</strong>，否则它会出现在你的站点里。</p>
+</blockquote>
+<hr />
+<h2 id="_8"><a class="anchor" href="#_8" aria-hidden="true">#</a><a class="anchor" href="# id="_8"" aria-hidden="true">#</a>十、踩过的坑</h2>
+<p><strong>1. 子路径 404</strong>
+现象：本地打开正常，部署后页面没样式。
+原因：<code>base_url</code> 没配。用户站和项目站的路径结构不同，这是新手最常踩的一个。</p>
+<p><strong>2. 下划线开头的目录被 Jekyll 吃掉</strong>
+GitHub Pages 默认会用 Jekyll 处理你的文件，而 Jekyll <strong>会忽略下划线开头的文件/目录</strong>。如果文章路径里有 <code>_posts</code> 之类，就会 404。解决：在根目录放一个空的 <code>.nojekyll</code> 文件（生成器已经自动生成了）。</p>
+<p><strong>3. 中文文件名变乱码</strong>
+文章文件名建议用英文 slug（如 <code>word-frequency-from-pdf.md</code>），中文标题放在 front matter 里。URL 里带中文虽然能用，但分享出去容易被转义成一长串 <code>%E7%94%A8...</code>。</p>
+<p><strong>4. 图片路径忘记加前缀</strong>
+同理 <code>base_url</code>。建议文章里的图片也用绝对路径写。</p>
+<hr />
+<h2 id="_9"><a class="anchor" href="#_9" aria-hidden="true">#</a><a class="anchor" href="# id="_9"" aria-hidden="true">#</a>小结</h2>
+<p>这套方案的核心是<strong>把复杂度留在构建时</strong>：运行时没有数据库、没有服务端、没有框架，浏览器拿到的就是最终 HTML。</p>
+<p>代价是：</p>
+<ul>
+<li>没有在线编辑后台，改文章要本地改文件再重新构建、推送</li>
+<li>评论要外挂（比如 Giscus，基于 GitHub Discussions，免费）</li>
+<li>搜索只能靠外部服务或浏览器查找</li>
+</ul>
+<p>如果你能接受这三点，静态博客几乎是零成本、零维护的最佳选择 —— <strong>一年托管费 0 元，被攻击概率接近 0，访问速度还比大多数动态站快。</strong></p>
+<p>完整生成器约 500 行，只依赖 <code>markdown</code> 和 <code>pygments</code> 两个库。</p>
+  </div>
+  <footer class="post-foot">
+    <p>觉得有用的话，欢迎把这篇分享给别人。</p>
+    <p class="back"><a href="/index.html">← 回到首页</a></p>
+  </footer>
+</article>
+</main>
+<footer class="site-foot">
+  <div class="wrap">
+    <p>© 2026 fjqwyt ·
+       由 Python 生成 ·
+       <a href="/feed.xml">RSS</a> ·
+       <a href="https://github.com/fjqwyt/fjqwyt.github.io">源码</a></p>
+    <p class="dim">本站是纯静态站点，内容写在 Markdown 里，一条命令生成整站。</p>
+  </div>
+</footer>
+<script src="/main.js"></script>
+</body>
+</html>

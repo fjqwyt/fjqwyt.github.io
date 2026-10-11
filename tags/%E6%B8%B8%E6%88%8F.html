@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>游戏 · 代码手记</title>
+<meta name="description" content="一个中文技术博客：Python、数据分析、踩坑记录与读书笔记。">
+<meta name="author" content="fjqwyt">
+<meta property="og:title" content="游戏 · 代码手记">
+<meta property="og:description" content="一个中文技术博客：Python、数据分析、踩坑记录与读书笔记。">
+<meta property="og:type" content="website">
+<link rel="alternate" type="application/rss+xml" title="代码手记" href="/feed.xml">
+<script>
+/* 尽早确定主题，避免刷新时先闪一下另一种配色。
+   默认跟随系统，用户手动切换过就记住选择。 */
+(function () {
+  try {
+    var saved = localStorage.getItem("blog-theme");
+    var theme = saved || ((window.matchMedia &&
+      window.matchMedia("(prefers-color-scheme: light)").matches) ? "light" : "dark");
+    document.documentElement.setAttribute("data-theme", theme);
+  } catch (e) {
+    document.documentElement.setAttribute("data-theme", "dark");
+  }
+})();
+</script>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<a class="skip" href="#main">跳到正文</a>
+<header class="site-head">
+  <div class="wrap head-inner">
+    <a class="brand" href="/index.html">
+      <span class="logo">◆</span>
+      <span class="brand-text">
+        <strong>代码手记</strong>
+        <em>把学到的讲清楚，才算真的学会</em>
+      </span>
+    </a>
+    <nav class="nav">
+      <a href="/index.html" >首页</a>
+      <a href="/archive.html" >归档</a>
+      <a href="/tags.html" class="on">标签</a>
+      <a href="/about.html" >关于</a>
+      <button id="theme-toggle" type="button" aria-label="切换深浅色主题" title="切换主题">◐</button>
+    </nav>
+  </div>
+</header>
+<main id="main" class="wrap">
+<h1 class="page-title">标签：游戏 <span class="dim">（1 篇）</span></h1><section class="list"><article class="card">
+  <h2 class="card-title"><a href="/posts/tkinter-snake-game.html">只用标准库写一个贪吃蛇：把逻辑和画面分开</a></h2>
+  <p class="meta">
+    <time datetime="2026-10-08">2026 年 10 月 8 日</time>
+    <span class="dot">·</span> 约 12 分钟
+    <span class="dot">·</span> <a class="chip" href="/tags/python.html">Python</a><a class="chip" href="/tags/%E6%B8%B8%E6%88%8F.html">游戏</a><a class="chip" href="/tags/tkinter.html">tkinter</a>
+  </p>
+  <p class="summary">用 tkinter 写贪吃蛇，重点不在画面，而在结构：把游戏规则和绘制彻底分开，于是不用开窗口就能自动化测试规则；再把画面做成 60fps 平滑滑动、发光和粒子，就有街机的感觉了。</p>
+  <a class="more" href="/posts/tkinter-snake-game.html">阅读全文 →</a>
+</article></section><p class="back"><a href="/tags.html">← 全部标签</a></p>
+</main>
+<footer class="site-foot">
+  <div class="wrap">
+    <p>© 2026 fjqwyt ·
+       由 Python 生成 ·
+       <a href="/feed.xml">RSS</a> ·
+       <a href="https://github.com/fjqwyt/fjqwyt.github.io">源码</a></p>
+    <p class="dim">本站是纯静态站点，内容写在 Markdown 里，一条命令生成整站。</p>
+  </div>
+</footer>
+<script src="/main.js"></script>
+</body>
+</html>
