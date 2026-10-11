@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>端到端测试文章 · 代码手记</title>
+<meta name="description" content="这条用来验证发布脚本，稍后会删除。">
+<meta name="author" content="fjqwyt">
+<meta property="og:title" content="端到端测试文章 · 代码手记">
+<meta property="og:description" content="这条用来验证发布脚本，稍后会删除。">
+<meta property="og:type" content="website">
+<link rel="alternate" type="application/rss+xml" title="代码手记" href="/feed.xml">
+<script>
+/* 尽早确定主题，避免刷新时先闪一下另一种配色。
+   默认跟随系统，用户手动切换过就记住选择。 */
+(function () {
+  try {
+    var saved = localStorage.getItem("blog-theme");
+    var theme = saved || ((window.matchMedia &&
+      window.matchMedia("(prefers-color-scheme: light)").matches) ? "light" : "dark");
+    document.documentElement.setAttribute("data-theme", theme);
+  } catch (e) {
+    document.documentElement.setAttribute("data-theme", "dark");
+  }
+})();
+</script>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<a class="skip" href="#main">跳到正文</a>
+<header class="site-head">
+  <div class="wrap head-inner">
+    <a class="brand" href="/index.html">
+      <span class="logo">◆</span>
+      <span class="brand-text">
+        <strong>代码手记</strong>
+        <em>把学到的讲清楚，才算真的学会</em>
+      </span>
+    </a>
+    <nav class="nav">
+      <a href="/index.html" >首页</a>
+      <a href="/archive.html" >归档</a>
+      <a href="/tags.html" >标签</a>
+      <a href="/about.html" >关于</a>
+      <button id="theme-toggle" type="button" aria-label="切换深浅色主题" title="切换主题">◐</button>
+    </nav>
+  </div>
+</header>
+<main id="main" class="wrap">
+<p class="back"><a href="/index.html">← 回到首页</a></p>
+<article class="post">
+  <header class="post-head">
+    <h1>端到端测试文章</h1>
+    <p class="meta">
+      <time datetime="2026-10-11">2026 年 10 月 11 日</time>
+      <span class="dot">·</span> 约 1 分钟
+      <span class="dot">·</span> <a class="chip" href="/tags/%E6%B5%8B%E8%AF%95.html">测试</a>
+    </p>
+  </header>
+  <div class="post-body">
+<h2 id="_1"><a class="anchor" href="#_1" aria-hidden="true">#</a><a class="anchor" href="# id="_1"" aria-hidden="true">#</a>测试正文</h2>
+<p>验证 publish.py 能完成构建、提交。</p>
+  </div>
+  <footer class="post-foot">
+    <p>觉得有用的话，欢迎把这篇分享给别人。</p>
+    <p class="back"><a href="/index.html">← 回到首页</a></p>
+  </footer>
+</article>
+</main>
+<footer class="site-foot">
+  <div class="wrap">
+    <p>© 2026 fjqwyt ·
+       由 Python 生成 ·
+       <a href="/feed.xml">RSS</a> ·
+       <a href="https://github.com/fjqwyt/fjqwyt.github.io">源码</a></p>
+    <p class="dim">本站是纯静态站点，内容写在 Markdown 里，一条命令生成整站。</p>
+  </div>
+</footer>
+<script src="/main.js"></script>
+</body>
+</html>
